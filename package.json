@@ -1,0 +1,32 @@
+{
+  "name": "shopnest-full-stack",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [
+    "raj",
+    "malviya",
+    "microservice"
+  ],
+  "license": "ISC",
+  "author": "raj malviya",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+  "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+
+  "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+
+  "dev:client": "cd frontend && npm start",
+
+  "dev:server": "cd backend && npm run dev",
+
+  "build": "cd frontend && npm run build",
+
+  "start": "cd backend && npm start",
+
+  "seed": "cd backend && npm run seed"
+},
+  "dependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
