@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { clearCart } from '../redux/cartSlice';
 
 const Checkout = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const cartItems = useSelector((state) => state.cart.cartItems);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -77,6 +77,12 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
+      if (!user?.token) {
+        alert('Please login again to continue payment');
+        navigate('/login');
+        return;
+      }
+
       if (cartItems.length === 0) {
         alert('Your cart is empty');
         return;
@@ -103,6 +109,13 @@ const Checkout = () => {
       const orderData = await readResponseBody(orderRes);
 
       if (!orderRes.ok) {
+        if (orderRes.status === 401) {
+          logout();
+          alert('Your session expired. Please login again.');
+          navigate('/login');
+          return;
+        }
+
         alert(orderData.message || `Payment failed to initialize (${orderRes.status})`);
         setLoading(false);
         return;
@@ -128,6 +141,13 @@ const Checkout = () => {
             const verifyData = await readResponseBody(verifyRes);
 
             if (!verifyRes.ok) {
+              if (verifyRes.status === 401) {
+                logout();
+                alert('Your session expired. Please login again.');
+                navigate('/login');
+                return;
+              }
+
               alert(verifyData.message || 'Payment verification failed');
               return;
             }
@@ -168,7 +188,7 @@ const Checkout = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!user) {
+    if (!user?.token) {
       alert('Please login first');
       navigate('/login');
       return;
