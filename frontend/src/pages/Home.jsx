@@ -5,6 +5,7 @@ const Home = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
