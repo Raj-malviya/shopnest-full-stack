@@ -109,15 +109,16 @@ const Checkout = () => {
       const orderData = await readResponseBody(orderRes);
 
       if (!orderRes.ok) {
-        if (orderRes.status === 401) {
-          logout();
-          alert('Your session expired. Please login again.');
-          navigate('/login');
-          return;
+        const fallback = window.confirm(
+          `${orderData.message || `Payment failed to initialize (${orderRes.status})`}\n\nUse Student Bypass Mode to place this test order?`
+        );
+
+        setLoading(false);
+
+        if (fallback) {
+          return bypassPayment();
         }
 
-        alert(orderData.message || `Payment failed to initialize (${orderRes.status})`);
-        setLoading(false);
         return;
       }
 
@@ -181,6 +182,24 @@ const Checkout = () => {
     } catch (error) {
       console.error(error);
       alert(error.message || 'Payment failed');
+      setLoading(false);
+    }
+  };
+
+  const bypassPayment = async () => {
+    try {
+      if (!user?.token) {
+        alert('Please login first');
+        navigate('/login');
+        return;
+      }
+
+      setLoading(true);
+      await saveOrder(`bypass_txn_${Date.now()}`);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Order saving failed');
+    } finally {
       setLoading(false);
     }
   };
