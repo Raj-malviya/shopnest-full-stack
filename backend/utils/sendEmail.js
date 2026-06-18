@@ -64,10 +64,11 @@ const sendWithGmailSmtp = async (mailOptions) => {
 
 const sendEmail = async (to, subject, text) => {
     try {
-        const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+        const isProduction = process.env.NODE_ENV === 'production';
+        const fromEmail = process.env.EMAIL_FROM || (!isProduction ? process.env.EMAIL_USER : null);
 
         if (!fromEmail) {
-            throw new Error('EMAIL_FROM or EMAIL_USER must be set');
+            throw new Error('EMAIL_FROM must be set');
         }
 
         const mailOptions = {
@@ -78,20 +79,16 @@ const sendEmail = async (to, subject, text) => {
         };
 
         if (process.env.RESEND_API_KEY) {
-            try {
-                await sendWithResend(mailOptions);
-                return;
-            } catch (error) {
-                if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-                    throw error;
-                }
+            await sendWithResend(mailOptions);
+            return;
+        }
 
-                console.error('Resend email failed, trying Gmail SMTP:', error.message);
-            }
+        if (isProduction) {
+            throw new Error('RESEND_API_KEY is missing in Render environment variables');
         }
 
         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-            throw new Error('RESEND_API_KEY is missing, or EMAIL_USER and EMAIL_PASS must be set for SMTP fallback');
+            throw new Error('EMAIL_USER and EMAIL_PASS must be set for local SMTP fallback');
         }
 
         await sendWithGmailSmtp(mailOptions);
