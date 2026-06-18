@@ -21,6 +21,20 @@ const Checkout = () => {
 
   const totalPrice = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
 
+  const readResponseBody = async (res) => {
+    const text = await res.text();
+
+    if (!text) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      return { message: text };
+    }
+  };
+
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       if (window.Razorpay) {
@@ -86,10 +100,10 @@ const Checkout = () => {
         },
         body: JSON.stringify({ amount: totalPrice })
       });
-      const orderData = await orderRes.json().catch(() => ({}));
+      const orderData = await readResponseBody(orderRes);
 
       if (!orderRes.ok) {
-        alert(orderData.message || 'Payment failed to initialize');
+        alert(orderData.message || `Payment failed to initialize (${orderRes.status})`);
         setLoading(false);
         return;
       }
@@ -111,7 +125,7 @@ const Checkout = () => {
               },
               body: JSON.stringify(response)
             });
-            const verifyData = await verifyRes.json().catch(() => ({}));
+            const verifyData = await readResponseBody(verifyRes);
 
             if (!verifyRes.ok) {
               alert(verifyData.message || 'Payment verification failed');
