@@ -11,10 +11,30 @@ const Checkout = () => {
   const navigate = useNavigate();
 
   const [address, setAddress] = useState({
-    fullName: '', street: '', city: '', postalCode: '', country: ''
+    fullName: '',
+    street: '',
+    city: '',
+    postalCode: '',
+    country: ''
   });
+  const [loading, setLoading] = useState(false);
 
   const totalPrice = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const saveOrder = async (paymentId) => {
     const saveOrderRes = await fetch('/api/orders', {
@@ -43,76 +63,103 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
+      if (cartItems.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      setLoading(true);
+
+      const scriptLoaded = await loadRazorpayScript();
+
+      if (!scriptLoaded) {
+        alert('Razorpay checkout could not load. Please check your connection.');
+        setLoading(false);
+        return;
+      }
+
       const orderRes = await fetch('/api/payments/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.token}`
+        },
         body: JSON.stringify({ amount: totalPrice })
       });
-      const orderData = await orderRes.json();
+      const orderData = await orderRes.json().catch(() => ({}));
 
       if (!orderRes.ok) {
-        // Razorpay unconfigured exception handler
-        const fallback = window.confirm("Razorpay keys unconfigured on backend. Use Student Bypass Mode to place test order?");
-        if (fallback) {
-          return bypassPayment();
-        } else {
-          return alert("Payment failed to initialize");
-        }
+        alert(orderData.message || 'Payment failed to initialize');
+        setLoading(false);
+        return;
       }
 
       const options = {
-        key: 'rzp_test_dummykey123', // Student dummy fallback
+        key: orderData.key,
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'ShopNest',
-        description: 'Test Transaction',
+        description: 'ShopNest order payment',
         order_id: orderData.id,
         handler: async function (response) {
-          const verifyRes = await fetch('/api/payments/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(response)
-          });
-          if (verifyRes.ok) {
-            await saveOrder(response.razorpay_payment_id);
-          } else {
-            alert('Payment verification failed');
+          try {
+            const verifyRes = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${user.token}`
+              },
+              body: JSON.stringify(response)
+            });
+            const verifyData = await verifyRes.json().catch(() => ({}));
+
+            if (!verifyRes.ok) {
+              alert(verifyData.message || 'Payment verification failed');
+              return;
+            }
+
+            await saveOrder(verifyData.paymentId || response.razorpay_payment_id);
+          } catch (error) {
+            console.error(error);
+            alert(error.message || 'Order saving failed');
+          } finally {
+            setLoading(false);
           }
         },
         prefill: {
           name: address.fullName,
-          email: user?.email,
-          contact: '9999999999'
+          email: user?.email || ''
         },
         theme: {
           color: '#f97316'
+        },
+        modal: {
+          ondismiss: () => setLoading(false)
         }
       };
-      
-      const rzp1 = new window.Razorpay(options);
-      rzp1.open();
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', function (response) {
+        alert(response.error?.description || 'Payment failed');
+        setLoading(false);
+      });
+      razorpay.open();
     } catch (error) {
       console.error(error);
       alert(error.message || 'Payment failed');
-    }
-  };
-
-  const bypassPayment = async () => {
-    try {
-      await saveOrder('bypass_txn_' + Date.now());
-    } catch (error) {
-      console.error(error);
-      alert(error.message || 'Order saving failed');
+      setLoading(false);
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (!user) {
-      alert("Please login first");
+      alert('Please login first');
       navigate('/login');
       return;
     }
+
     handlePayment();
   };
 
@@ -122,14 +169,16 @@ const Checkout = () => {
       <div className="checkout-content">
         <form onSubmit={handleSubmit} className="shipping-form">
           <h3>Shipping Address</h3>
-          <input type="text" placeholder="Full Name" required value={address.fullName} onChange={(e) => setAddress({...address, fullName: e.target.value})} />
-          <input type="text" placeholder="Street" required value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})} />
-          <input type="text" placeholder="City" required value={address.city} onChange={(e) => setAddress({...address, city: e.target.value})} />
-          <input type="text" placeholder="Postal Code" required value={address.postalCode} onChange={(e) => setAddress({...address, postalCode: e.target.value})} />
-          <input type="text" placeholder="Country" required value={address.country} onChange={(e) => setAddress({...address, country: e.target.value})} />
+          <input type="text" placeholder="Full Name" required value={address.fullName} onChange={(e) => setAddress({ ...address, fullName: e.target.value })} />
+          <input type="text" placeholder="Street" required value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
+          <input type="text" placeholder="City" required value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+          <input type="text" placeholder="Postal Code" required value={address.postalCode} onChange={(e) => setAddress({ ...address, postalCode: e.target.value })} />
+          <input type="text" placeholder="Country" required value={address.country} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
           <div className="checkout-summary">
-            <h4>Total to Pay: ₹{totalPrice.toFixed(2)}</h4>
-            <button type="submit" className="btn">Pay Now</button>
+            <h4>Total to Pay: Rs. {totalPrice.toFixed(2)}</h4>
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? 'Processing...' : 'Pay Now'}
+            </button>
           </div>
         </form>
       </div>
