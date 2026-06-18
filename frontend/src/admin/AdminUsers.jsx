@@ -27,6 +27,25 @@ const AdminUsers = () => {
     fetchUsers();
   }, [user]);
 
+  const deleteUser = async (id) => {
+    if (!window.confirm('Delete this user and all related orders?')) {
+      return;
+    }
+
+    const res = await fetch(`/api/auth/users/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${user.token}` }
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setUsers(users.filter((u) => u._id !== id));
+      alert(data.message || 'User deleted successfully');
+    } else {
+      alert(data.message || 'Could not delete user');
+    }
+  };
+
   return (
     <div style={containerStyle}>
       <h2 style={{ color: '#f97316', marginBottom: '20px' }}>User Directory</h2>
@@ -39,6 +58,7 @@ const AdminUsers = () => {
               <th style={thStyle}>EMAIL</th>
               <th style={thStyle}>ROLE</th>
               <th style={thStyle}>JOINED</th>
+              <th style={thStyle}>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -53,6 +73,20 @@ const AdminUsers = () => {
                   </span>
                 </td>
                 <td style={tdStyle}>{getJoinedDate(u)}</td>
+                <td style={tdStyle}>
+                  <button
+                    type="button"
+                    onClick={() => deleteUser(u._id)}
+                    disabled={u._id === user._id}
+                    style={{
+                      ...deleteBtn,
+                      opacity: u._id === user._id ? 0.5 : 1,
+                      cursor: u._id === user._id ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -67,5 +101,6 @@ const tableStyle = { width: '100%', borderCollapse: 'collapse' };
 const rowStyle = { borderBottom: '1px solid rgba(255,255,255,0.1)' };
 const thStyle = { padding: '15px', textAlign: 'left', color: '#a1a1aa', fontSize: '0.9rem' };
 const tdStyle = { padding: '15px', textAlign: 'left' };
+const deleteBtn = { background: '#ef4444', color: '#fff', padding: '6px 12px', borderRadius: '4px', border: 'none' };
 
 export default AdminUsers;

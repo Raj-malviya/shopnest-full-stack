@@ -63,8 +63,16 @@ const getMyOrders = async (req, res) => {
 
 const getOrders = async (req, res) => {
   try {
-    const orders = await Order.find({}).populate('userId', 'id name');
-    res.json(orders);
+    const orders = await Order.find({}).populate('userId', 'id name email');
+    const orphanedOrderIds = orders
+      .filter((order) => !order.userId)
+      .map((order) => order._id);
+
+    if (orphanedOrderIds.length > 0) {
+      await Order.deleteMany({ _id: { $in: orphanedOrderIds } });
+    }
+
+    res.json(orders.filter((order) => order.userId));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

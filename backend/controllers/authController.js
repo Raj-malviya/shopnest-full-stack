@@ -1,4 +1,5 @@
 const User = require('../model/User');
+const Order = require('../model/Order');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
@@ -280,10 +281,44 @@ const getUsers = async (req, res) => {
     }
 };
 
+const deleteUser = async (req, res) => {
+    try {
+        if (req.user._id.toString() === req.params.id) {
+            return res.status(400).json({
+                message: 'You cannot delete your own admin account',
+            });
+        }
+
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            await Order.deleteMany({ userId: req.params.id });
+            return res.status(404).json({
+                message: 'User not found. Related orders were cleaned up.',
+            });
+        }
+
+        await Order.deleteMany({ userId: user._id });
+        await user.deleteOne();
+
+        return res.json({
+            message: 'User and related orders deleted successfully',
+        });
+
+    } catch (error) {
+        console.log(error);
+
+        return res.status(500).json({
+            message: error.message,
+        });
+    }
+};
+
 module.exports = {
     registerUser,
     verifyEmail,
     resendOtp,
     loginUser,
     getUsers,
+    deleteUser,
 };

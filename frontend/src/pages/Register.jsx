@@ -6,10 +6,13 @@ const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -21,10 +24,13 @@ const Register = () => {
         alert(data.message || 'Registration successful. Please check your email for the OTP.');
         navigate('/verify-email', { state: { email } });
       } else {
-        alert(data.message);
+        alert(data.message || 'Registration failed. Please try again.');
       }
     } catch (error) {
       console.error(error);
+      alert('Could not register. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -35,7 +41,9 @@ const Register = () => {
         <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button type="submit" className="btn">Register</button>
+        <button type="submit" className="btn" disabled={loading}>
+          {loading ? 'Registering...' : 'Register'}
+        </button>
         <p>Already have an account? <Link to="/login">Login</Link></p>
       </form>
     </div>

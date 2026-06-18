@@ -19,7 +19,8 @@ const {
     loginUser,
     getUsers,
     verifyEmail,
-    resendOtp
+    resendOtp,
+    deleteUser
 } = require('../controllers/authController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -30,5 +31,6 @@ router.post('/verify-email', verifyEmail);
 router.post('/resend-otp', resendOtp);
 router.post('/login', loginUser);
 router.get('/users', protect, admin, getUsers);
+router.delete('/users/:id', protect, admin, deleteUser);
 
 module.exports = router;
